@@ -1,0 +1,50 @@
+# packages.yaml
+# This file replaces packages.json and is the central repository index.
+packages:
+  - name: "nginx"
+    version: "1.23.4"
+    url: "https://httpbin.org/anything/nginx-1.23.4.tar.zst"
+    checksum: "c60717cd911b3fe3d4c16ca12bde88feaa28037b1a7f40dbfdf366a4a54528f1"
+    dependencies: null
+    description: "A high performance web server."
+    icon_url: "url/to/nginx_icon.png"
+    changelog_url: "url/to/nginx/changelog"
+
+  - name: "git"
+    version: "2.40.1"
+    url: "https://httpbin.org/anything/git-2.40.1.tar.zst"
+    checksum: "d2c1f8b0e3a4b5c6f7e8d9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7g8h9i0"
+    dependencies: null
+    description: "A distributed version control system."
+    icon_url: "url/to/git_icon.png"
+    changelog_url: "url/to/git/changelog"
+
+  - name: "libc"
+    version: "1.0.0"
+    url: "http://localhost:8000/libc.tar.zst"
+    checksum: "2d6440a03ce04d35e18ff71424be4f1aadd37bc16b8a5c2a2920359df95083db"
+    dependencies: null
+    description: "The standard C library."
+    icon_url: "url/to/libc_icon.png"
+    changelog_url: "url/to/libc/changelog"
+
+  - name: "hello"
+    version: "2.0.0" # Updated version
+    url: "http://localhost:8000/hello-2.0.0.tar.zst" # Assume a new package file exists
+    checksum: "some_new_checksum_for_hello_2.0.0" # Placeholder checksum
+    dependencies:
+      - "libc"
+    description: "A simple hello world program, now updated."
+    icon_url: "url/to/hello_icon.png"
+    changelog_url: "url/to/hello/changelog"
+
+  - name: "nvidia-driver"
+    version: "580.76.05"
+    url: "https://us.download.nvidia.com/XFree86/Linux-x86_64/580.76.05/NVIDIA-Linux-x86_64-580.76.05.run" # Example URL
+    checksum: "219be636b60931b021b2e8c1e0eff887363c731f8a940caa87bcc054d05d97fd"
+    dependencies:
+      - "linux-headers" # Example dependency
+    description: "NVIDIA proprietary graphics driver."
+    icon_url: "url/to/nvidia_icon.png"
+    changelog_url: "url/to/nvidia/changelog"
+    post_install: "install-nvidia.sh" # Script to run after installation

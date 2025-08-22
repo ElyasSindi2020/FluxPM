@@ -1,0 +1,17 @@
+{
+  "name": "hello",
+  "version": "1.0.0",
+  "depends": [
+    "libc"
+  ],
+  "files": [
+    {
+      "path": "/usr/bin/hello.sh",
+      "size": 65,
+      "priority": "high",
+      "url": "http://localhost:8000/hello-1.0.0.tar.zst",
+      "sha256": "91d5fdde0c17259d1a5afadd3153c19354b9e19174ccb528b4a5605ca51ebd58",
+      "link": "/usr/bin/hello"
+    }
+  ]
+}
