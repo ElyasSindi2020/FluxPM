@@ -90,6 +90,4 @@ See the build-scripts directory for examples on how to compile and package softw
 🤝 Contributing
 
 Contributions are welcome! If you have ideas for new features, bug fixes, or improvements, please open an issue or submit a pull request.
-📜 License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
+📜
