@@ -30,7 +30,7 @@ Installation
 
     Clone the repository:
 
-    git clone [https://github.com/your-username/FluxPM.git](https://github.com/your-username/FluxPM.git)
+    git clone https://github.com/ElyasSindi2020/FluxPM.git
     cd FluxPM
 
     Build the release binary:
