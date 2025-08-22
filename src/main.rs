@@ -206,7 +206,8 @@ async fn download_file(url: &Url, dest_path: &Path) -> Result<(), FluxError> {
         let source_path = url.to_file_path().map_err(|_| FluxError::Config(format!("Invalid file path in URL: {}", url)))?;
         fs::copy(&source_path, dest_path).await?;
     } else {
-        let mut stream = reqwest::get(url.clone()).await?.bytes_stream();
+        let response = reqwest::get(url.clone()).await?.error_for_status()?;
+        let mut stream = response.bytes_stream();
         let mut dest_file = File::create(dest_path).await?;
         while let Some(chunk) = stream.next().await {
             dest_file.write_all(&chunk?).await?;
@@ -290,6 +291,8 @@ async fn handle_install(package_name: &str, ctx: &AppContext) -> Result<(), Flux
         return Ok(());
     }
 
+    let mut new_install_records = Vec::new();
+
     for info in &packages_to_process {
         let install_path = ctx.get_install_path(info);
         fs::create_dir_all(&install_path).await?;
@@ -297,16 +300,18 @@ async fn handle_install(package_name: &str, ctx: &AppContext) -> Result<(), Flux
         let archive_name = format!("{}-{}.tar.zst", &info.name, &info.version);
         let archive_path = ctx.host_cache_path.parent().unwrap().join(&archive_name);
 
-        if info.checksum.starts_with("some_") || info.checksum.starts_with("a_real_") {
-            println!("Skipping download for {} due to placeholder checksum.", info.name);
-            fs::write(&archive_path, "").await?;
+        let is_placeholder = info.checksum.starts_with("some_") || info.checksum.starts_with("a_real_");
+        let mut extracted_files = Vec::new();
+
+        if is_placeholder {
+            println!("Skipping download and extraction for {} due to placeholder checksum.", info.name);
         } else {
             println!("Downloading {} from {}", info.name, info.url);
             download_file(&Url::parse(&info.url)?, &archive_path).await?;
             verify_checksum(info, &archive_path).await?;
+            extracted_files = extract_package(&archive_path, &install_path).await?;
+            fs::remove_file(&archive_path).await?;
         }
-
-        let _extracted_files = extract_package(&archive_path, &install_path).await?;
 
         if let Some(script_name) = &info.post_install {
             let script_path = install_path.join(script_name);
@@ -323,24 +328,23 @@ async fn handle_install(package_name: &str, ctx: &AppContext) -> Result<(), Flux
                 }
             }
         }
-        fs::remove_file(&archive_path).await?;
-    }
 
-    let mut all_installed = installed_packages;
-    for info in packages_to_process {
         let reason = if info.name == package_name {
             InstallReason::Explicit
         } else {
             InstallReason::Dependency
         };
-        all_installed.push(InstalledPackageInfo {
+        new_install_records.push(InstalledPackageInfo {
             name: info.name.clone(),
             version: info.version.clone(),
             package_type: info.package_type.clone(),
             install_reason: reason,
-            files: vec![], // TODO: Populate this with `extracted_files`
+            files: extracted_files,
         });
     }
+
+    let mut all_installed = installed_packages;
+    all_installed.extend(new_install_records);
 
     ctx.write_installed_packages(&all_installed).await?;
     println!("Package database updated.");
@@ -378,16 +382,30 @@ async fn handle_remove(package_name: &str, ctx: &AppContext) -> Result<(), FluxE
 
     if let Some(index) = installed.iter().position(|p| p.name == package_name) {
         let pkg_to_remove = installed.remove(index);
-        let info_from_repo = ctx.package_index.get(&pkg_to_remove.name).ok_or_else(|| FluxError::PackageNotFound(pkg_to_remove.name.clone()))?;
-        let install_path = ctx.get_install_path(info_from_repo);
 
         println!("Removing package: {}", pkg_to_remove.name);
-        if install_path.exists() {
-            if pkg_to_remove.package_type == PackageType::App {
+        if pkg_to_remove.package_type == PackageType::App {
+            let info_from_repo = ctx.package_index.get(&pkg_to_remove.name).ok_or_else(|| FluxError::PackageNotFound(pkg_to_remove.name.clone()))?;
+            let install_path = ctx.get_install_path(info_from_repo);
+            if install_path.exists() {
                 fs::remove_dir_all(&install_path).await?;
                 println!("Removed directory: {}", install_path.display());
-            } else {
-                println!("Warning: System package removal (file-by-file) not implemented yet.");
+            }
+        } else { // System package
+            println!("Removing files for system package {}...", pkg_to_remove.name);
+            for file_path in pkg_to_remove.files.iter().rev() {
+                let full_path = ctx.target_root.join(file_path);
+                if full_path.exists() {
+                    if full_path.is_dir() {
+                        if fs::read_dir(&full_path).await?.next_entry().await?.is_none() {
+                            println!("Removing empty directory: {}", full_path.display());
+                            fs::remove_dir(&full_path).await?;
+                        }
+                    } else {
+                        println!("Removing file: {}", full_path.display());
+                        fs::remove_file(&full_path).await?;
+                    }
+                }
             }
         }
 
@@ -470,7 +488,6 @@ async fn handle_autoremove(ctx: &AppContext) -> Result<(), FluxError> {
     let installed = ctx.get_installed_packages().await?;
     let mut required_deps = HashSet::new();
 
-    // 1. Find all packages that are required as a dependency by any installed package
     for pkg in &installed {
         if let Some(info) = ctx.package_index.get(&pkg.name) {
             if let Some(deps) = &info.dependencies {
@@ -481,7 +498,6 @@ async fn handle_autoremove(ctx: &AppContext) -> Result<(), FluxError> {
         }
     }
 
-    // 2. Find packages that were installed as a dependency and are no longer required
     let mut orphans_to_remove = Vec::new();
     for pkg in &installed {
         if pkg.install_reason == InstallReason::Dependency && !required_deps.contains(&pkg.name) {
@@ -499,7 +515,6 @@ async fn handle_autoremove(ctx: &AppContext) -> Result<(), FluxError> {
         println!("- {}", orphan);
     }
 
-    // In a real app, you might ask for user confirmation here.
     println!("\nRemoving unused dependencies...");
     for package_name in orphans_to_remove {
         handle_remove(&package_name, ctx).await?;
