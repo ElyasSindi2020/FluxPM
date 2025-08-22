@@ -1,6 +1,6 @@
 FluxPM - The Flexible Linux Package Manager
 
-FluxPM is a modern, fast, and flexible binary package manager written in Rust, designed specifically for bootstrapping and managing custom Linux From Scratch (LFS) and LFS-like systems. It combines the speed of a binary package manager with a unique hybrid installation model, making it a powerful tool for building and maintaining a clean and stable custom distribution.
+FluxPM is a modern, fast, and flexible binary package manager written in Rust. It combines the speed of a binary package manager with a unique hybrid installation model, making it a powerful tool for building and maintaining a clean and stable custom distribution.
 ✨ Unique Features
 
 FluxPM was built with a few core principles in mind, making it different from traditional package managers.
